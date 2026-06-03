@@ -1469,46 +1469,60 @@ h1, h2, h3, h4 { font-family: var(--font-display); line-height: 1.2; }
 }
    <!-- Contact Form -->
         <div class="contact-form-card animate-in">
-          <h3 style="margin-bottom:8px;font-size:1.4rem">Send Us a Message</h3>
-          <p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:28px">We'll get back to you within 2 hours during business hours.</p>
-          <div class="form-row">
-            <div class="form-group">
-              <label>Your Name *</label>
-              <input type="text" placeholder="Enter your name" required>
-            </div>
-            <div class="form-group">
-              <label>Phone Number *</label>
-              <input type="tel" placeholder="+91 XXXXX XXXXX" required>
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Email Address</label>
-            <input type="email" placeholder="your@email.com">
-          </div>
-          <div class="form-group">
-            <label>Event Type</label>
-            <select>
-              <option value="">Select Event Type</option>
-              <option>Birthday Cake</option>
-              <option>Wedding Cake</option>
-              <option>Anniversary Cake</option>
-              <option>Custom Theme Cake</option>
-              <option>Bulk / Corporate Order</option>
-              <option>Café Reservation</option>
-              <option>General Enquiry</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Your Message</label>
-            <textarea placeholder="Tell us about your order, design ideas, or any questions you have..."></textarea>
-          </div>
-          <button class="btn btn-primary btn-lg" style="width:100%;justify-content:center" onclick="submitForm()">
-            🎂 Send Message
-          </button>
-          <p style="text-align:center;color:var(--text-muted);font-size:0.78rem;margin-top:16px">
-            Or call us directly: <a href="tel:08072340500" style="color:var(--gold);font-weight:600">08072340500</a>
-          </p>
-        </div>
+         <h3 style="margin-bottom:8px;font-size:1.4rem">Send Us a Message</h3>
+<p style="color:var(--text-muted);font-size:0.88rem;margin-bottom:28px">We'll get back to you within 2 hours during business hours.</p>
+
+<!-- Success State -->
+<div id="formSuccess" style="display:none;text-align:center;padding:40px 20px;">
+  <div style="font-size:4rem;margin-bottom:16px;">✅</div>
+  <h3 style="font-size:1.4rem;margin-bottom:8px;color:var(--text-dark)">Message Sent!</h3>
+  <p style="color:var(--text-muted);margin-bottom:24px">We'll call you back within 2 hours. Check your email for confirmation.</p>
+  <button class="btn btn-secondary" onclick="resetForm()">Send Another Message</button>
+</div>
+
+<!-- Error Box -->
+<div id="formError" style="display:none;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:var(--radius-md);padding:14px 18px;margin-bottom:20px;color:#DC2626;font-size:0.88rem;"></div>
+
+<!-- The Form -->
+<div id="contactFormWrap">
+  <div class="form-row">
+    <div class="form-group">
+      <label>Your Name *</label>
+      <input type="text" id="cf-name" placeholder="Enter your name">
+    </div>
+    <div class="form-group">
+      <label>Phone Number *</label>
+      <input type="tel" id="cf-phone" placeholder="+91 XXXXX XXXXX">
+    </div>
+  </div>
+  <div class="form-group">
+    <label>Email Address</label>
+    <input type="email" id="cf-email" placeholder="your@email.com">
+  </div>
+  <div class="form-group">
+    <label>Event Type</label>
+    <select id="cf-event">
+      <option value="">Select Event Type</option>
+      <option>Birthday Cake</option>
+      <option>Wedding Cake</option>
+      <option>Anniversary Cake</option>
+      <option>Custom Theme Cake</option>
+      <option>Bulk / Corporate Order</option>
+      <option>Café Reservation</option>
+      <option>General Enquiry</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Your Message *</label>
+    <textarea id="cf-message" placeholder="Tell us about your order, design ideas, or any questions you have..."></textarea>
+  </div>
+  <button class="btn btn-primary btn-lg" id="cfSubmitBtn" style="width:100%;justify-content:center" onclick="submitContactForm()">
+    🎂 Send Message
+  </button>
+  <p style="text-align:center;color:var(--text-muted);font-size:0.78rem;margin-top:16px">
+    Or call us directly: <a href="tel:08072340500" style="color:var(--gold);font-weight:600">08072340500</a>
+  </p>
+</div>
       </div>
 </style>
 </head>
@@ -2839,16 +2853,64 @@ function closeLightbox() {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeLightbox(); });
 
 // ======================== FORM SUBMIT ========================
-function submitForm() {
-  const btn = event.target;
-  btn.textContent = '✅ Message Sent! We\'ll call you back.';
-  btn.style.background = 'linear-gradient(135deg,#16A34A,#4ADE80)';
+async function submitContactForm() {
+  const name = document.getElementById('cf-name').value.trim();
+  const phone = document.getElementById('cf-phone').value.trim();
+  const email = document.getElementById('cf-email').value.trim();
+  const eventType = document.getElementById('cf-event').value;
+  const message = document.getElementById('cf-message').value.trim();
+  const btn = document.getElementById('cfSubmitBtn');
+  const errBox = document.getElementById('formError');
+
+  errBox.style.display = 'none';
+
+  if (!name) { showFormError('Please enter your name.'); return; }
+  if (!phone) { showFormError('Please enter your phone number.'); return; }
+  if (!message) { showFormError('Please enter your message.'); return; }
+
   btn.disabled = true;
-  setTimeout(() => {
-    btn.innerHTML = '🎂 Send Message';
-    btn.style.background = '';
+  btn.innerHTML = '⏳ Sending...';
+
+  try {
+    const res = await fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, phone, email, eventType, message }),
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      document.getElementById('contactFormWrap').style.display = 'none';
+      document.getElementById('formSuccess').style.display = 'block';
+    } else {
+      showFormError(data.error || 'Something went wrong. Please try again.');
+      btn.disabled = false;
+      btn.innerHTML = '🎂 Send Message';
+    }
+  } catch (err) {
+    showFormError('Network error. Please call us at 08072340500.');
     btn.disabled = false;
-  }, 4000);
+    btn.innerHTML = '🎂 Send Message';
+  }
+}
+
+function showFormError(msg) {
+  const errBox = document.getElementById('formError');
+  errBox.textContent = '⚠️ ' + msg;
+  errBox.style.display = 'block';
+  errBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function resetForm() {
+  document.getElementById('contactFormWrap').style.display = 'block';
+  document.getElementById('formSuccess').style.display = 'none';
+  document.getElementById('formError').style.display = 'none';
+  document.getElementById('cf-name').value = '';
+  document.getElementById('cf-phone').value = '';
+  document.getElementById('cf-email').value = '';
+  document.getElementById('cf-event').value = '';
+  document.getElementById('cf-message').value = '';
+  document.getElementById('cfSubmitBtn').disabled = false;
+  document.getElementById('cfSubmitBtn').innerHTML = '🎂 Send Message';
 }
 
 // ======================== INIT ========================
